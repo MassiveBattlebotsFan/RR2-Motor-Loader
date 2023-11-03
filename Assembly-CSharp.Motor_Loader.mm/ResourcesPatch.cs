@@ -47,16 +47,22 @@ public class patch_Robot_Resources : Robot_Resources
                 data.compinfo = new Component_Info();
                 data.compinfo = i.Value.GetComponent<Component_Info>();
                 Debug.Log("adding meshes");
+                List<int> already_added_this = new List<int>();
                 foreach (var j in i.Value.transform.GetComponentsInChildren<MeshFilter>())
                 {
-                    data.meshes.Add(new Mesh_Wrapper(j.mesh));
+                    if (!already_added_this.Contains(j.mesh.GetInstanceID()))
+                    {
+                        data.meshes.Add(new Mesh_Wrapper(j.mesh));
+                        already_added_this.Add(j.mesh.GetInstanceID());
+                    }
                 }
                 if(data.compinfo.comp_type == CompType.SpinMotor)
                 {
                     JSON_Motor_Data temp = new JSON_Motor_Data(i.Value.GetComponent<Comp_Info_Motor>());
                     Debug.Log("CompType.SpinMotor, dumping motorinfo wrapper class");
-                    File.WriteAllText(GlobalDirectories.RobotDirectory.FullName + Custom_Part_Info.GetSafeName(i.Key) + "-motorinfo.json", JsonUtility.ToJson(temp, true));
-                    File.WriteAllText(GlobalDirectories.RobotDirectory.FullName + Custom_Part_Info.GetSafeName(i.Key) + "-compinfo2.json", JsonUtility.ToJson(temp.GetCompInfo(), true));
+                    File.WriteAllText(Custom_Part_Info.GetInfoPath(i.Key), JsonUtility.ToJson(temp, true));
+                    File.WriteAllText(Custom_Part_Info.GetMeshPath(i.Key), JsonUtility.ToJson(data, true));
+                    //File.WriteAllText(GlobalDirectories.RobotDirectory.FullName + Custom_Part_Info.GetSafeName(i.Key) + "-compinfo2.json", JsonUtility.ToJson(temp.GetCompInfo(), true));
                 }
                 //data[i.Key]["comp_info"] = JsonUtility.ToJson(i.Value.GetComponent<Component_Info>(), true);
                 //File.WriteAllText(GlobalDirectories.RobotDirectory.FullName + new string(i.Key.Where(m => !System.IO.Path.GetInvalidFileNameChars().Contains(m)).ToArray<char>()) + "-compinfo.json", JsonUtility.ToJson(i.Value.GetComponent<Component_Info>(), true));
