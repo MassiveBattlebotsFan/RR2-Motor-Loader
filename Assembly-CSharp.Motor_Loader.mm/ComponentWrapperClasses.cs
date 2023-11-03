@@ -9,6 +9,30 @@ using MonoMod;
 using Mono.Cecil;
 
 
+public static class Custom_Part_Info
+{
+    public static string comp_info_file = ".RR2Comp";
+    public static string mesh_file = ".RR2Mesh";
+    public static string texture_file = ".RR2Tex";
+    public static string base_folder = GlobalDirectories.RobotDirectory.FullName;
+    public static string GetInfoPath(string filename)
+    {
+        return base_folder + GetSafeName(filename) + comp_info_file;
+    }
+    public static string GetMeshPath(string filename)
+    {
+        return base_folder + GetSafeName(filename) + mesh_file;
+    }
+    public static string GetTexPath(string filename)
+    {
+        return base_folder + GetSafeName(filename) + texture_file;
+    }
+    public static string GetSafeName(string filename)
+    {
+        return new string(filename.Where(m => !System.IO.Path.GetInvalidFileNameChars().Contains(m)).ToArray<char>());
+    }
+}
+
 [Serializable]
 public class JSON_Part_Data
 {
