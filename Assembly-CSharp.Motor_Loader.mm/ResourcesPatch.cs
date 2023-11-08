@@ -40,19 +40,47 @@ public class patch_Robot_Resources : Robot_Resources
 
     public static extern void orig_fillResources();
 
-    public static void loadTestPart()
+
+    public static void loadPartsFromNewlineList()
     {
-        string filedata = File.ReadAllText(Custom_Part_Info.GetInfoPath("test"));
+        if (!File.Exists(Custom_Part_Info.base_folder + "list.txt"))
+        {
+            Debug.Log("No custom part list file found, aborting custom part reconstruction");
+            return;
+        }
+        string[] part_name_list = File.ReadAllLines(Custom_Part_Info.base_folder + "list.txt");
+        foreach(var i in part_name_list)
+        {
+            string trimmed_i = i.Trim();
+            Debug.Log("Checking for RR2Mesh and RR2Comp files for " + trimmed_i);
+            if (!File.Exists(Custom_Part_Info.GetInfoPath(trimmed_i)))
+            {
+                Debug.Log(Custom_Part_Info.GetInfoPath(trimmed_i) + " does not exist, skipping " + trimmed_i);
+                continue;
+            }
+            if (!File.Exists(Custom_Part_Info.GetMeshPath(trimmed_i)))
+            {
+                Debug.Log(Custom_Part_Info.GetMeshPath(trimmed_i) + " does not exist, skipping " + trimmed_i);
+                continue;
+            }
+            Debug.Log("RR2Mesh and RR2Comp files exist for " + trimmed_i + ", reconstructing...");
+            loadTestPart(trimmed_i);
+        }
+    }
+
+    public static void loadTestPart(string filename)
+    {
+        string filedata = File.ReadAllText(Custom_Part_Info.GetInfoPath(filename));
         JSON_Motor_Data motor_data = JsonUtility.FromJson<JSON_Motor_Data>(filedata);
         Motor_Reconstructor reconstructor = new Motor_Reconstructor(motor_data);
-        DataDumpClass mesh_info_dump = JsonUtility.FromJson<DataDumpClass>(File.ReadAllText(Custom_Part_Info.GetMeshPath("test")));
+        DataDumpClass mesh_info_dump = JsonUtility.FromJson<DataDumpClass>(File.ReadAllText(Custom_Part_Info.GetMeshPath(filename)));
         foreach(var i in mesh_info_dump.body_meshes)
         {
-            reconstructor.body_meshes.Add(new Mesh_Construct_Wrapper(i, "test"));
+            reconstructor.body_meshes.Add(new Mesh_Construct_Wrapper(i, filename));
         }
         foreach (var i in mesh_info_dump.axle_meshes)
         {
-            reconstructor.axle_meshes.Add(new Mesh_Construct_Wrapper(i, "test"));
+            reconstructor.axle_meshes.Add(new Mesh_Construct_Wrapper(i, filename));
         }
         reconstructor.ReconstructMeshes();
         GameObject motor = reconstructor.ReconstructMotor();
@@ -143,7 +171,12 @@ public class patch_Robot_Resources : Robot_Resources
         //dumpParts();
         if (!testPartLoaded)
         {
-            loadTestPart();
+            //loadTestPart("test");
+            loadPartsFromNewlineList();
+            foreach(var i in std_comp_list.Keys)
+            {
+                Debug.Log(i);
+            }
             testPartLoaded = true;
         }
     }
