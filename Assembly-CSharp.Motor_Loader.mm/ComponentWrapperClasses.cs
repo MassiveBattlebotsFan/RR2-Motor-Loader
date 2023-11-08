@@ -134,6 +134,7 @@ public class JSON_Motor_Data : JSON_Part_Data
         temp.comp_type = this.comp_type;
         temp.comp_string_id = this.string_ID;
         temp.kV_rating = this.kV_rating;
+        temp.combined_gear_ratio = 1;
         temp.comp_set = 2;
         return temp;
     }
@@ -155,6 +156,7 @@ public class JSON_Motor_Data : JSON_Part_Data
         temp.comp_type = this.comp_type;
         temp.comp_string_id = this.string_ID;
         temp.kV_rating = this.kV_rating;
+        temp.combined_gear_ratio = 1;
         temp.comp_set = 2;
         return temp;
     }
@@ -248,6 +250,7 @@ public class Motor_Reconstructor
             Debug.Log("Motor gameobject created");
             axle.AddComponent<Rigidbody>();
             axle.AddComponent<HingeJoint>().connectedBody = motor.AddComponent<Rigidbody>();
+            axle.GetComponent<HingeJoint>().axis = Vector3.up;
             Debug.Log("Added rigidbody and hinge to axle");
             body.transform.SetParent(motor.transform);
             body.transform.localPosition = json_data.body_position;

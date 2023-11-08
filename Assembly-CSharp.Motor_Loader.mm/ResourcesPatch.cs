@@ -28,6 +28,8 @@ public class patch_Component_Info : Component_Info
 
 }
 
+
+
 public class patch_Robot_Resources : Robot_Resources
 {
     [MonoModIgnore]
