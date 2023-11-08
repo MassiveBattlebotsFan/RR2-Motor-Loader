@@ -205,6 +205,7 @@ public class Motor_Reconstructor
     public List<Mesh_Construct_Wrapper> body_meshes = new List<Mesh_Construct_Wrapper>();
     public List<Mesh_Construct_Wrapper> axle_meshes = new List<Mesh_Construct_Wrapper>();
     public bool meshes_reconstructed = false;
+    public static float current_x = 0;
     public Motor_Reconstructor(JSON_Motor_Data data_from)
     {
         json_data = data_from;
@@ -227,6 +228,12 @@ public class Motor_Reconstructor
         attachment.GetComponent<CapsuleCollider>().radius = json_data.attachment_radius;
         attachment.transform.SetParent(this.axle.transform);
         attachment.transform.localPosition = json_data.attachment_location;
+        GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        capsule.transform.SetParent(attachment.transform);
+        capsule.transform.localPosition = Vector3.zero;
+        capsule.transform.localRotation = Quaternion.identity;
+        capsule.transform.localScale = new Vector3(json_data.attachment_radius * 2, json_data.attachment_height / 2, json_data.attachment_radius * 2);
+        UnityEngine.Object.Destroy(capsule.GetComponent<MeshRenderer>());
         this.meshes_reconstructed = true;
     }
 
@@ -251,6 +258,10 @@ public class Motor_Reconstructor
             motor.GetComponent<Comp_Info_Motor>().armorMaterial = new ArmourMaterial();
             //motor.SetActiveRecursively(false);
             motor.hideFlags = HideFlags.HideInHierarchy;
+            motor.transform.localPosition = new Vector3(Motor_Reconstructor.current_x, -3000, 0);
+            Motor_Reconstructor.current_x += 100;
+            //motor.GetComponent<Rigidbody>().freezeRotation = true;
+            motor.AddComponent<Dont_Destroy_My_Stuff>().base_id = motor.GetInstanceID();
             motor.SetActive(true);
             Debug.Log("Reconstructed " + json_data.GetCompInfo(motor.GetComponent<Comp_Info_Motor>()).comp_name);
             return motor;
