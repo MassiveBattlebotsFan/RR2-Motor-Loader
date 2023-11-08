@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using UnityEngine;
+using UnityEditor;
 using MonoMod;
 using Mono.Cecil;
 
@@ -15,6 +16,8 @@ public static class Custom_Part_Info
     public static string mesh_file = ".RR2Mesh.json";
     public static string texture_file = ".RR2Tex.json";
     public static string base_folder = GlobalDirectories.RobotDirectory.FullName;
+    public static bool custom_cpt_base_init = false;
+
     public static string GetInfoPath(string filename)
     {
         return base_folder + GetSafeName(filename) + comp_info_file;
@@ -59,6 +62,11 @@ public class JSON_Motor_Data : JSON_Part_Data
     public float max_safe_torque;
     public float stall_torque;
     public bool is_brushless;
+    public Vector3 attachment_location;
+    public float attachment_radius;
+    public float attachment_height;
+    public Vector3 axle_position;
+    public Vector3 body_position;
     
     public JSON_Motor_Data()
     {
@@ -84,9 +92,53 @@ public class JSON_Motor_Data : JSON_Part_Data
         this.string_ID = construct_from.comp_string_id;
         this.kV_rating = construct_from.kV_rating;
     }
+
+    public void SetMeshLocationInfo(GameObject motor)
+    {
+        if (motor == null)
+        {
+            Debug.LogWarning("motor null");
+            return;
+        }
+        this.body_position = motor.transform.GetChild(0).transform.localPosition;
+        this.axle_position = motor.transform.GetChild(1).transform.localPosition;
+    }
+    public void SetAttachmentInfo(GameObject attachment)
+    {
+        if (attachment == null)
+        {
+            Debug.LogWarning("attachment null");
+            return;
+        }
+        this.attachment_location = attachment.transform.localPosition;
+        this.attachment_radius = attachment.GetComponent<CapsuleCollider>().radius;
+        this.attachment_height = attachment.GetComponent<CapsuleCollider>().height;
+    }
+
     public Comp_Info_Motor GetCompInfo()
     {
         Comp_Info_Motor temp = new Comp_Info_Motor();
+        temp.max_volts_before_fried = this.max_voltage;
+        temp.max_rpm = this.max_rpm;
+        temp.max_rotor_RPM = this.max_rotor_rpm;
+        temp.description = this.description;
+        temp.comp_name = this.name;
+        temp.stall_torque = this.stall_torque;
+        temp.max_safe_torque = this.max_safe_torque;
+        temp.internal_resistance = this.internal_resistance;
+        temp.is_brushless = this.is_brushless;
+        temp.weight = this.weight;
+        temp.max_continuous_current = this.max_cont_current;
+        temp.localCOM = this.center_of_mass;
+        temp.referencePosition = this.reference_position;
+        temp.comp_type = this.comp_type;
+        temp.comp_string_id = this.string_ID;
+        temp.kV_rating = this.kV_rating;
+        temp.comp_set = 2;
+        return temp;
+    }
+    public Comp_Info_Motor GetCompInfo(Comp_Info_Motor temp)
+    {
         temp.max_volts_before_fried = this.max_voltage;
         temp.max_rpm = this.max_rpm;
         temp.max_rotor_RPM = this.max_rotor_rpm;
@@ -118,6 +170,15 @@ public class Mesh_Construct_Wrapper
     {
         this.name = newname;
     }
+    public Mesh_Construct_Wrapper(Mesh_Wrapper wrapper, string newname)
+    {
+        this.name = newname;
+        this.GetMeshFromWrapper(wrapper);
+    }
+    public void GetMeshFromWrapper(Mesh_Wrapper wrapper)
+    {
+        this.mesh = wrapper.getMeshBack();
+    }
 
     public GameObject GetRenderableObject()
     {
@@ -135,16 +196,15 @@ public class Mesh_Construct_Wrapper
 public class Motor_Reconstructor
 {
     public JSON_Motor_Data json_data;
-    public GameObject motor = new GameObject();
-    public GameObject body = new GameObject();
+    public GameObject body = new GameObject("Body");
     //public List<GameObject> body_go = new List<GameObject>();
-    public GameObject axle = new GameObject();
+    public GameObject axle = new GameObject("Axle");
     //public List<GameObject> axle_go = new List<GameObject>();
     public GameObject electrical_sparks = new GameObject();
     public GameObject motor_smoke = new GameObject();
     public List<Mesh_Construct_Wrapper> body_meshes = new List<Mesh_Construct_Wrapper>();
     public List<Mesh_Construct_Wrapper> axle_meshes = new List<Mesh_Construct_Wrapper>();
-
+    public bool meshes_reconstructed = false;
     public Motor_Reconstructor(JSON_Motor_Data data_from)
     {
         json_data = data_from;
@@ -155,12 +215,46 @@ public class Motor_Reconstructor
         foreach(var i in body_meshes)
         {
             GameObject temp = i.GetRenderableObject();
-            temp.transform.parent = this.body.transform;
+            temp.transform.SetParent(this.body.transform);
         }
         foreach (var i in axle_meshes)
         {
             GameObject temp = i.GetRenderableObject();
-            temp.transform.parent = this.axle.transform;
+            temp.transform.SetParent(this.axle.transform);
         }
+        GameObject attachment = new GameObject("Attachment");
+        attachment.AddComponent<CapsuleCollider>().height = json_data.attachment_height;
+        attachment.GetComponent<CapsuleCollider>().radius = json_data.attachment_radius;
+        attachment.transform.SetParent(this.axle.transform);
+        attachment.transform.localPosition = json_data.attachment_location;
+        this.meshes_reconstructed = true;
+    }
+
+    public GameObject ReconstructMotor()
+    {
+        if (this.meshes_reconstructed)
+        {
+            Debug.Log("Beginning reconstruction");
+            GameObject motor = new GameObject(json_data.name);
+            //motor.transform.SetParent(Custom_Part_Info.custom_component_base_obj.transform);
+            motor.SetActive(false);
+            Debug.Log("Motor gameobject created");
+            axle.AddComponent<Rigidbody>();
+            axle.AddComponent<HingeJoint>().connectedBody = motor.AddComponent<Rigidbody>();
+            Debug.Log("Added rigidbody and hinge to axle");
+            body.transform.SetParent(motor.transform);
+            body.transform.localPosition = json_data.body_position;
+            axle.transform.SetParent(motor.transform);
+            axle.transform.localPosition = json_data.axle_position;
+            Debug.Log("Added children to motor");
+            motor.AddComponent<Comp_Info_Motor>().attach_to = axle;
+            motor.GetComponent<Comp_Info_Motor>().armorMaterial = new ArmourMaterial();
+            //motor.SetActiveRecursively(false);
+            motor.hideFlags = HideFlags.HideInHierarchy;
+            motor.SetActive(true);
+            Debug.Log("Reconstructed " + json_data.GetCompInfo(motor.GetComponent<Comp_Info_Motor>()).comp_name);
+            return motor;
+        }
+        return null;
     }
 }
