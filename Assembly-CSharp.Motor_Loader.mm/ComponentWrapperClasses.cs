@@ -17,7 +17,26 @@ public static class Custom_Part_Info
     public static string texture_file = ".RR2Tex.json";
     public static string base_folder = GlobalDirectories.RobotDirectory.FullName;
     public static bool custom_cpt_base_init = false;
+    public static GameObject sparks;
+    public static GameObject smoke;
 
+    public static void UpdateSparksSmoke()
+    {
+        if(sparks == null)
+        {
+            if(Robot_Resources.std_comp_list.ContainsKey("stdComp_3 Inch Brushless Motor8d7ab3e746546d3f159e30b"))
+            {
+                sparks = Robot_Resources.std_comp_list["stdComp_3 Inch Brushless Motor8d7ab3e746546d3f159e30b"].transform.Find("ElectricalSparks").gameObject;
+            }
+        }
+        if (smoke == null)
+        {
+            if (Robot_Resources.std_comp_list.ContainsKey("stdComp_3 Inch Brushless Motor8d7ab3e746546d3f159e30b"))
+            {
+                smoke = Robot_Resources.std_comp_list["stdComp_3 Inch Brushless Motor8d7ab3e746546d3f159e30b"].transform.Find("MotorSmoke").gameObject;
+            }
+        }
+    }
     public static string GetInfoPath(string filename)
     {
         return base_folder + GetSafeName(filename) + comp_info_file;
@@ -34,6 +53,13 @@ public static class Custom_Part_Info
     {
         return new string(filename.Where(m => !System.IO.Path.GetInvalidFileNameChars().Contains(m)).ToArray<char>());
     }
+}
+
+[Serializable]
+public class JSON_Mesh_Texture_Map
+{
+    public string filename;
+    public int mesh_index;
 }
 
 [Serializable]
@@ -67,14 +93,20 @@ public class JSON_Motor_Data : JSON_Part_Data
     public float attachment_height;
     public Vector3 axle_position;
     public Vector3 body_position;
-    
+    public List<JSON_Mesh_Texture_Map> body_tex;
+    public List<JSON_Mesh_Texture_Map> axle_tex;
+
     public JSON_Motor_Data()
     {
         this.comp_type = CompType.SpinMotor;
+        if (this.body_tex == null) this.body_tex = new List<JSON_Mesh_Texture_Map>();
+        if (this.axle_tex == null) this.axle_tex = new List<JSON_Mesh_Texture_Map>();
     }
     public JSON_Motor_Data(Comp_Info_Motor construct_from)
     {
         this.comp_type = CompType.SpinMotor;
+        if (this.body_tex == null) this.body_tex = new List<JSON_Mesh_Texture_Map>();
+        if (this.axle_tex == null) this.axle_tex = new List<JSON_Mesh_Texture_Map>();
         if (construct_from == null) return;
         this.max_voltage = construct_from.max_volts_before_fried;
         this.max_rpm = construct_from.max_rpm;
@@ -165,7 +197,7 @@ public class JSON_Motor_Data : JSON_Part_Data
 public class Mesh_Construct_Wrapper
 {
     public Mesh mesh;
-    public Texture2D texture;
+    public Texture2D texture = new Texture2D(2, 2);
     public string name;
 
     public Mesh_Construct_Wrapper(string newname)
@@ -213,6 +245,54 @@ public class Motor_Reconstructor
         json_data = data_from;
     }
 
+    public void ReconstructTexturesFromFilenameList()
+    {
+        foreach(var i in json_data.body_tex)
+        {
+            if (i == null) continue;
+            if (!File.Exists(Custom_Part_Info.base_folder + i.filename))
+            {
+                Debug.Log("Warn: " + i.filename + " not found");
+                continue;
+            }
+            if (i.mesh_index < 0 || i.mesh_index >= body_meshes.Count)
+            {
+                Debug.Log("Warn: Mesh texture map with filename " + i.filename + " index " + i.mesh_index + " out of bounds");
+                continue;
+            }
+            byte[] image_data = File.ReadAllBytes(Custom_Part_Info.base_folder + i.filename);
+            if(image_data == null)
+            {
+                Debug.Log("Warn: Data loaded from " + i.filename + " is null");
+                continue;
+            }
+            Debug.Log("Loaded image data from " + i.filename + ", texturing body_meshes[" + i.mesh_index + "]...");
+            this.body_meshes[i.mesh_index].texture.LoadImage(image_data);
+        }
+        foreach (var i in json_data.axle_tex)
+        {
+            if (i == null) continue;
+            if (!File.Exists(Custom_Part_Info.base_folder + i.filename))
+            {
+                Debug.Log("Warn: " + i.filename + " not found");
+                continue;
+            }
+            if (i.mesh_index < 0 || i.mesh_index >= axle_meshes.Count)
+            {
+                Debug.Log("Warn: Mesh texture map with filename " + i.filename + " index " + i.mesh_index + " out of bounds");
+                continue;
+            }
+            byte[] image_data = File.ReadAllBytes(Custom_Part_Info.base_folder + i.filename);
+            if (image_data == null)
+            {
+                Debug.Log("Warn: Data loaded from " + i.filename + " is null");
+                continue;
+            }
+            Debug.Log("Loaded image data from " + i.filename + ", texturing axle_meshes[" + i.mesh_index + "]...");
+            this.axle_meshes[i.mesh_index].texture.LoadImage(image_data);
+        }
+    }
+
     public void ReconstructMeshes()
     {
         foreach(var i in body_meshes)
@@ -256,6 +336,12 @@ public class Motor_Reconstructor
             body.transform.localPosition = json_data.body_position;
             axle.transform.SetParent(motor.transform);
             axle.transform.localPosition = json_data.axle_position;
+            GameObject sparks = GameObject.Instantiate(Custom_Part_Info.sparks);
+            sparks.name = "ElectricalSparks";
+            sparks.transform.SetParent(motor.transform);
+            GameObject smoke = GameObject.Instantiate(Custom_Part_Info.smoke);
+            smoke.name = "MotorSmoke";
+            smoke.transform.SetParent(motor.transform);
             Debug.Log("Added children to motor");
             motor.AddComponent<Comp_Info_Motor>().attach_to = axle;
             motor.GetComponent<Comp_Info_Motor>().armorMaterial = new ArmourMaterial();

@@ -82,11 +82,15 @@ public class patch_Robot_Resources : Robot_Resources
         {
             reconstructor.axle_meshes.Add(new Mesh_Construct_Wrapper(i, filename));
         }
+        Debug.Log("Loading textures from files...");
+        reconstructor.ReconstructTexturesFromFilenameList();
+        Debug.Log("Reconstructing meshes...");
         reconstructor.ReconstructMeshes();
         GameObject motor = reconstructor.ReconstructMotor();
         if (motor != null)
         {
             Debug.Log("Reconstruction produced a GameObject");
+            Debug.Log("String ID for reconstructed component: " + motor_data.string_ID);
             std_comp_list.Add(motor_data.string_ID, motor);
         }
         else
@@ -171,12 +175,13 @@ public class patch_Robot_Resources : Robot_Resources
         //dumpParts();
         if (!testPartLoaded)
         {
+            Custom_Part_Info.UpdateSparksSmoke();
             //loadTestPart("test");
             loadPartsFromNewlineList();
-            foreach(var i in std_comp_list.Keys)
+            /*foreach(var i in std_comp_list.Keys)
             {
                 Debug.Log(i);
-            }
+            }*/
             testPartLoaded = true;
         }
     }
